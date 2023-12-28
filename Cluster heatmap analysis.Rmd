@@ -1,0 +1,96 @@
+---
+title: "Midterm"
+author: "Joaquin Farina"
+date: "2023-11-05"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#loading libraries
+library(ComplexHeatmap)
+library(circlize)
+library(hopach)
+```
+```{r}
+data0 <- read.csv("weekly_school_openings_county_2021_chile.csv")
+data <- data0[, c(12:50)]
+data.scale <- scale(data)
+```
+
+
+```{r}
+
+Heatmap(data.scale, name = "Mean % of opened days", 
+        cluster_rows=FALSE , cluster_columns = FALSE)
+```
+```{r}
+#defining function for uncentered correlation
+uncenter.dist<-function(m) {
+  as.dist(as.matrix(distancematrix(m, d="cosangle")))
+}
+```
+
+
+```{r}
+#uncentered correlation with avg linkage clustering
+row.clus<-hclust(uncenter.dist(data.scale), method = "ave")
+col.clus<-hclust(uncenter.dist(t(data.scale)), method = "ave")
+
+Heatmap(data[, c(2:39)], name = "Mean % of\ndays opened", 
+        cluster_rows=row.clus, cluster_columns = FALSE)
+```
+
+```{r}
+png("heatmap_figure.png",width=7.25,height=12,units="in",res=1000)
+
+#defining annotations
+SLEP<-Heatmap(data0[, c(5)], name = "LEA",
+                   col = colorRamp2(c(0,1),c("white", "black")),
+                   heatmap_legend_param = list(at = c(0,1),
+                         labels = c("No", "Yes"),
+                   width = unit(0.5,"cm"), legend_height = unit(1, "cm")))
+
+RURAL<-Heatmap(data0[, c(4)], name = "High Rurality",
+                   col = colorRamp2(c(0,1),c("white", "black")),
+                   heatmap_legend_param = list(at = c(0,1),
+                         labels = c("No", "Yes"),
+                   width = unit(0.5,"cm"), legend_height = unit(1, "cm")))
+
+MAT_TOTAL<-Heatmap(data0[, c(3)], name = "High Enrollment",
+                   col = colorRamp2(c(0,1),c("white", "black")),
+                   heatmap_legend_param = list(at = c(0,1),
+                         labels = c("No", "Yes"),
+                   width = unit(0.5,"cm"), legend_height = unit(1, "cm")))
+
+
+row_ha = rowAnnotation( "Learning\nLoss (SD)" = anno_barplot(data[,c(1)]), width = unit(2, "cm"))
+column_ha = HeatmapAnnotation("Mean % of\ndays openned" = anno_barplot(colMeans(data[, c(2:39)])), height = unit(1.5, "cm"))
+
+#adding annotations
+ht_main = Heatmap(data[, c(2:39)], name = "Opened Schools (%)", row_split = 4,
+                  cluster_rows=row.clus, cluster_columns = FALSE,  show_column_dend = TRUE,
+                  row_dend_reorder = TRUE, column_names_gp = gpar(fontsize = 6), 
+                  right_annotation = row_ha,top_annotation = column_ha,
+                  heatmap_legend_param = list(
+                    legend_height = unit(1, "cm"))
+                  )
+
+
+draw(ht_main+SLEP+RURAL+MAT_TOTAL, auto_adjust = TRUE,  merge_legend = TRUE, heatmap_legend_side = "bottom", 
+    annotation_legend_side = "bottom", height = unit(20, "cm"))
+
+dev.off()
+```
+
